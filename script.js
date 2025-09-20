@@ -6,7 +6,7 @@ import { getDatabase, ref, push, onValue, set } from "https://www.gstatic.com/fi
 // ==================================================================
 // 중요: Netlify 환경 변수에 설정한 VAPID 공개 키를 여기에 붙여넣으세요.
 // ==================================================================
-const VAPID_PUBLIC_KEY = "YOUR_VAPID_PUBLIC_KEY";
+const VAPID_PUBLIC_KEY = "BD-EpP_7KB44ze4fi3gjugtwm0WOU67v8jYJgLXQCzRip_mVKB4k7yuu28Xb_XATwBcVFwBzZapbRwMICet-8Xo";
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -82,3 +82,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 // ... (이전에 제공된 나머지 모든 함수 코드를 여기에 복사하세요) ...
+
