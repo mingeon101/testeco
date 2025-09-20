@@ -14,36 +14,84 @@
 </head>
 <body>
     <div class="simulation-container">
-        <!-- ... (이전과 동일한 HTML 내용) ... -->
-        <div id="side-panel-overlay" class="side-panel-overlay">
-            <div id="side-panel" class="side-panel">
-                <div class="side-panel-header">
-                    <h2 id="side-panel-title">마이페이지</h2>
-                    <button id="side-panel-close-btn">&times;</button>
+        <div id="game-display-area" class="flex-grow flex flex-col justify-between p-4">
+            <header>
+                <h1 class="text-3xl sm:text-4xl font-bold">나의 탄소 오름</h1>
+            </header>
+            
+            <main class="flex-grow flex flex-col items-center justify-center">
+                <div class="oreum-background">
+                    <div id="oreum" class="oreum level-1">
+                        <div class="tree-container">
+                            <div id="tree1" class="tree"><div class="trunk"></div><div class="leaves"></div></div>
+                            <div id="tree2" class="tree"><div class="trunk"></div><div class="leaves"></div></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="side-panel-content">
-                    <div id="logged-out-view">
-                        <p class="text-center text-sm mb-4">로그인하고 오름을 키워보세요!</p>
-                        <button id="google-sign-in-btn" class="google-btn"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-6 h-6"><span>Google 계정으로 로그인</span></button>
+            </main>
+            
+            <div class="dashboard">
+                <div class="stat">레벨 <span id="level-value" class="text-2xl sm:text-3xl">1</span></div>
+                <div class="stat">생명력 <span id="life-force-value" class="text-2xl sm:text-3xl">0</span></div>
+                <div class="stat">감축량 <span id="ghg-reduced-value" class="text-2xl sm:text-3xl">0g</span></div>
+            </div>
+            
+            <div class="sensor-dashboard">
+                <p>현재 이동수단: <span id="transport-display" class="font-bold text-blue-600 animate-pulse">대기 중...</span></p>
+                <p>현재 속도: <span id="speed-display" class="value">0 m/s</span></p>
+                <p>가속도: <span id="acc-display" class="value">0 m/s²</span></p>
+                <p id="user-info-display" class="text-xs truncate text-gray-400">로그인하고 오름을 키워보세요!</p>
+                <p id="db-status" class="text-xs text-gray-400">Firebase 초기화 중...</p>
+            </div>
+        </div>
+        
+        <footer class="w-full border-t border-gray-300 bg-white">
+            <nav class="flex justify-around items-center h-16 text-gray-500">
+                <a id="mission-icon-wrapper" class="flex-1 flex justify-center items-center h-full cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></a>
+                <a id="rewards-icon-wrapper" class="flex-1 flex justify-center items-center h-full cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></a>
+                <a id="profile-icon-wrapper" class="flex-1 flex justify-center items-center h-full cursor-pointer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></a>
+            </nav>
+        </footer>
+    </div>
+    
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modal-title" class="font-bold text-lg mb-2"></h3>
+            <p id="modal-message" class="text-sm text-gray-600 mb-4"></p>
+            <button id="modal-close-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md">확인</button>
+        </div>
+    </div>
+    
+    <div id="side-panel-overlay" class="side-panel-overlay">
+        <div id="side-panel" class="side-panel">
+            <div class="side-panel-header">
+                <h2 id="side-panel-title">마이페이지</h2>
+                <button id="side-panel-close-btn">&times;</button>
+            </div>
+            <div class="side-panel-content">
+                <div id="logged-out-view">
+                    <p class="text-center text-sm mb-4">로그인하고 오름을 키워보세요!</p>
+                    <button id="google-sign-in-btn" class="google-btn"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-6 h-6"><span>Google 계정으로 로그인</span></button>
+                </div>
+                
+                <div id="logged-in-view" class="hidden">
+                    <p id="panel-user-info" class="text-center text-sm mb-4">로그인 정보가 없습니다.</p>
+                    <div class="flex flex-col gap-4">
+                        <div class="stat"><p>현재 레벨</p><span id="panel-level-value">1</span></div>
+                        <div class="stat"><p>총 감축량</p><span id="panel-ghg-reduced-value">0g</span></div>
                     </div>
                     
-                    <div id="logged-in-view" class="hidden">
-                        <p id="panel-user-info" class="text-center text-sm mb-4">로그인 정보가 없습니다.</p>
-                        <div class="flex flex-col gap-4">
-                            <div class="stat"><p>현재 레벨</p><span id="panel-level-value">1</span></div>
-                            <div class="stat"><p>총 감축량</p><span id="panel-ghg-reduced-value">0g</span></div>
-                        </div>
-                        
-                        <button id="subscribe-btn" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
-                            알림 구독하기
-                        </button>
-    
-                        <button id="sign-out-btn" class="mt-8 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">로그아웃</button>
-                    </div>
+                    <button id="subscribe-btn" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                        알림 구독하기
+                    </button>
+
+                    <button id="sign-out-btn" class="mt-8 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">로그아웃</button>
                 </div>
             </div>
         </div>
     </div>
+
     <script type="module" src="script.js"></script>
 </body>
 </html>
+
