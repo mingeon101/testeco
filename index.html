@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나의 탄소 오름</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="https://i.postimg.cc/byMjbXs1/Gemini-Generated-Image-s04wxfs04wxfs04w-1.png?dl=1">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="simulation-container">
+        <!-- ... (이전과 동일한 HTML 내용) ... -->
+        <div id="side-panel-overlay" class="side-panel-overlay">
+            <div id="side-panel" class="side-panel">
+                <div class="side-panel-header">
+                    <h2 id="side-panel-title">마이페이지</h2>
+                    <button id="side-panel-close-btn">&times;</button>
+                </div>
+                <div class="side-panel-content">
+                    <div id="logged-out-view">
+                        <p class="text-center text-sm mb-4">로그인하고 오름을 키워보세요!</p>
+                        <button id="google-sign-in-btn" class="google-btn"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="w-6 h-6"><span>Google 계정으로 로그인</span></button>
+                    </div>
+                    
+                    <div id="logged-in-view" class="hidden">
+                        <p id="panel-user-info" class="text-center text-sm mb-4">로그인 정보가 없습니다.</p>
+                        <div class="flex flex-col gap-4">
+                            <div class="stat"><p>현재 레벨</p><span id="panel-level-value">1</span></div>
+                            <div class="stat"><p>총 감축량</p><span id="panel-ghg-reduced-value">0g</span></div>
+                        </div>
+                        
+                        <button id="subscribe-btn" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                            알림 구독하기
+                        </button>
+    
+                        <button id="sign-out-btn" class="mt-8 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">로그아웃</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
