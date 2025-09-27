@@ -44,6 +44,18 @@ const rewardsList = [
     { id: 'walk_500g', description: '탄소 500g 감축 달성', completed: false, requiredGhg: 500 },
 ];
 
+// AI 미션 관련 상수 및 상태
+const AI_MISSION_REWARD = 500; // AI 인증 성공 시 부여할 GHGs
+
+let aiMissionState = {
+    base64Image: null,
+    isSubmitting: false,
+    currentMission: { // 예시: 텀블러 사용 인증 미션
+        prompt: "제공된 이미지는 재사용 가능한 텀블러를 들고 있는 사진인가요? '네' 또는 '아니오'로만 답하고 다른 설명은 하지 마세요.",
+        successKeyword: "네"
+    }
+};
+
 // UI 제어 함수
 function showModal(title, message) {
     document.getElementById("modal-title").textContent = title;
@@ -78,6 +90,24 @@ function openRewardsModal() {
 function closeRewardsModal() {
     document.getElementById('rewards-modal-overlay').style.display = 'none';
 }
+
+// **AI 미션 모달 제어 함수**
+function openAIMissionModal() {
+    document.getElementById('mission-modal-overlay').style.display = 'none'; // 메인 미션 모달 닫기
+    document.getElementById('ai-mission-modal-overlay').style.display = 'flex'; // AI 미션 모달 열기
+}
+
+function closeAIMissionModal() {
+    document.getElementById('ai-mission-modal-overlay').style.display = 'none';
+    // AI 상태 초기화
+    document.getElementById("ai-image-preview").src = "https://placehold.co/150x150/f0f0f0/888?text=Image+Preview";
+    document.getElementById("ai-image-input").value = "";
+    document.getElementById("ai-status-message").textContent = "텀블러를 들고 있는 사진을 선택해 주세요.";
+    document.getElementById("ai-submit-mission-btn").disabled = true;
+    aiMissionState.base64Image = null;
+    aiMissionState.isSubmitting = false;
+}
+
 
 // 보상 관련 함수
 function checkRewardsStatus() {
@@ -197,6 +227,167 @@ function startSensors() {
     }
 }
 
+// **AI 미션 관련 신규 함수**
+
+// 파일(Blob)을 Base64 문자열로 변환하는 헬퍼 함수
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+    });
+}
+
+// AI (Gemini API) 호출 함수 (이미지 분석)
+async function callGeminiAPI(base64Image, missionPrompt) {
+    const apiKey = ""; // Canvas 환경에서 자동으로 제공될 예정
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+    const payload = {
+        contents: [
+            {
+                role: "user",
+                parts: [
+                    { text: missionPrompt },
+                    {
+                        inlineData: {
+                            // 실제 이미지 mimeType을 사용하는 것이 좋으나, 예제에서는 jpeg/png 허용
+                            mimeType: "image/jpeg", 
+                            data: base64Image
+                        }
+                    }
+                ]
+            }
+        ],
+    };
+    
+    // 지연 및 재시도 로직 구현
+    let response;
+    let success = false;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+
+    while (retryCount < MAX_RETRIES && !success) {
+        try {
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                if (response.status === 429) { // Rate limit
+                    console.warn(`Rate Limit Exceeded. Retrying in ${Math.pow(2, retryCount)}s...`);
+                    // Throw to trigger catch and retry logic
+                    throw new Error('Rate Limit'); 
+                }
+                throw new Error(`API call failed with status: ${response.status}`);
+            }
+
+            success = true;
+        } catch (error) {
+            // Note: Do not log retry attempts as errors in the console as per instructions
+            retryCount++;
+            if (retryCount < MAX_RETRIES) {
+                const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff (1s, 2s, 4s)
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                throw new Error("AI 인증 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+            }
+        }
+    }
+
+    if (!response || !response.ok) {
+        throw new Error("AI 인증 결과를 가져오는 데 실패했습니다.");
+    }
+    
+    const result = await response.json();
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return text.trim();
+}
+
+// AI 미션 인증 처리 함수
+async function submitAIMission() {
+    if (!userId) {
+        showModal("인증 오류", "AI 미션 인증을 위해서는 로그인이 필요합니다.");
+        return;
+    }
+    if (aiMissionState.isSubmitting || !aiMissionState.base64Image) {
+        showModal("오류", "인증할 이미지를 먼저 선택하거나, 이전 인증이 진행 중입니다.");
+        return;
+    }
+
+    aiMissionState.isSubmitting = true;
+    document.getElementById("ai-submit-mission-btn").disabled = true;
+    document.getElementById("ai-status-message").textContent = "AI가 이미지를 분석 중입니다... (최대 10초 소요)";
+
+    try {
+        const resultText = await callGeminiAPI(aiMissionState.base64Image, aiMissionState.currentMission.prompt);
+        
+        console.log("AI 분석 결과:", resultText);
+
+        // 결과 텍스트가 성공 키워드를 포함하는지 확인
+        if (resultText.includes(aiMissionState.currentMission.successKeyword)) {
+            // 보상 부여
+            currentState.lifeForce += AI_MISSION_REWARD;
+            currentState.ghgReduced += AI_MISSION_REWARD;
+            
+            // Firebase에 즉시 저장
+            const userPath = `users/${userId}/gameState`;
+            await set(ref(db, userPath), currentState);
+            
+            updateDisplay();
+            checkLevelUp();
+            checkRewardsStatus();
+            
+            document.getElementById("ai-status-message").textContent = `✅ 미션 성공! 생명력과 탄소 감축량 ${AI_MISSION_REWARD}g이 추가되었습니다!`;
+            showModal("미션 성공!", `축하합니다! 텀블러 사용이 인증되어 오름의 생명력과 탄소 감축량 ${AI_MISSION_REWARD}g을 획득했습니다.`);
+            
+            // UI/상태 초기화
+            document.getElementById("ai-submit-mission-btn").disabled = false;
+            closeAIMissionModal();
+
+        } else {
+            document.getElementById("ai-status-message").textContent = "❌ 미션 실패: 이미지에서 텀블러 사용을 확인할 수 없습니다. 다시 시도해 주세요.";
+            showModal("미션 실패", "AI가 이미지에서 텀블러 사용을 확인하지 못했습니다. 명확한 사진으로 다시 시도해 주세요.");
+        }
+
+    } catch (error) {
+        console.error("AI 인증 처리 중 오류:", error);
+        document.getElementById("ai-status-message").textContent = `❌ 오류: ${error.message}`;
+        showModal("인증 오류", error.message);
+    } finally {
+        aiMissionState.isSubmitting = false;
+        document.getElementById("ai-submit-mission-btn").disabled = false;
+    }
+}
+
+// AI 미션 이미지 선택 핸들러
+function handleImageSelection(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById("ai-image-preview");
+    const status = document.getElementById("ai-status-message");
+
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            preview.src = e.target.result;
+            // Base64 변환 시 이미지 형식 지정 (jpeg로 가정)
+            aiMissionState.base64Image = await fileToBase64(file); 
+            status.textContent = "이미지가 준비되었습니다. 인증 버튼을 눌러주세요.";
+            document.getElementById("ai-submit-mission-btn").disabled = false;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.src = "https://placehold.co/150x150/f0f0f0/888?text=Image+Preview";
+        aiMissionState.base64Image = null;
+        status.textContent = "유효한 이미지 파일(JPEG 또는 PNG)을 선택해주세요.";
+        document.getElementById("ai-submit-mission-btn").disabled = true;
+    }
+}
+
+
 // Firebase 인증 및 데이터 로드 함수
 async function signInWithGoogle() {
     const provider = new GoogleAuthProvider();
@@ -252,6 +443,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const missionCloseBtn = document.getElementById('mission-close-btn');
     const rewardsCloseBtn = document.getElementById('rewards-close-btn');
 
+    // **AI 미션 관련 신규 DOM 요소**
+    const aiMissionBtn = document.getElementById('ai-mission-btn');
+    const aiMissionModalOverlay = document.getElementById('ai-mission-modal-overlay');
+    const aiMissionCloseBtn = document.getElementById('ai-mission-close-btn');
+    const aiImageInput = document.getElementById('ai-image-input');
+    const aiSubmitMissionBtn = document.getElementById('ai-submit-mission-btn');
+
+
     onAuthStateChanged(auth, (user) => {
         const loggedOutView = document.getElementById("logged-out-view");
         const loggedInView = document.getElementById("logged-in-view");
@@ -297,6 +496,13 @@ document.addEventListener('DOMContentLoaded', () => {
     missionModalOverlay.addEventListener('click', e => { if (e.target === missionModalOverlay) closeMissionModal(); });
     rewardsModalOverlay.addEventListener('click', e => { if (e.target === rewardsModalOverlay) closeRewardsModal(); });
     
+    // **AI 미션 이벤트 리스너 추가**
+    aiMissionBtn.addEventListener('click', openAIMissionModal);
+    aiMissionCloseBtn.addEventListener('click', closeAIMissionModal);
+    aiMissionModalOverlay.addEventListener('click', e => { if (e.target === aiMissionModalOverlay) closeAIMissionModal(); });
+    aiImageInput.addEventListener('change', handleImageSelection);
+    aiSubmitMissionBtn.addEventListener('click', submitAIMission);
+    
     subscribeBtn.addEventListener('click', async () => {
         if (!('PushManager' in window) || !auth.currentUser) {
             showModal("오류", "푸시 알림을 구독하려면 로그인이 필요합니다.");
@@ -325,4 +531,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
